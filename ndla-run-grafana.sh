@@ -2,7 +2,7 @@
 
 function prepare_remote {
     secretsfile="/tmp/secrets"
-    aws s3 --region eu-central-1 cp s3://$NDLA_ENVIRONMENT.secrets.ndla/grafana.secrets $secretsfile
+    aws s3 --region eu-central-1 cp s3://$NDLA_ENVIRONMENT.secrets.ndla/monitoring.secrets $secretsfile
 
     DATABASE_HOST=$(cat $secretsfile | jq -r .META_SERVER)
     DATABASE_PORT=$(cat $secretsfile | jq -r .META_PORT)

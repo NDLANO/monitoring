@@ -1,4 +1,4 @@
-# Grafana
+# Monitoring
 
 Grafana monitoring for NDLA.no
 
