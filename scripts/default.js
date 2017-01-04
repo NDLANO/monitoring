@@ -2,7 +2,23 @@
 
 let datasource = 'test';
 let region = 'eu-central-1';
-let components = ['article-api', 'learningpath-api', 'api-gateway', 'api-documentation'];
+let components = [
+  'api-documentation',
+  'api-gateway',
+  'article-api',
+  'article-oembed',
+  'audio-api',
+  'auth',
+  'grep',
+  'image-api',
+  'learningpath-api',
+  'learningpath-frontend',
+  'monitoring',
+  'ndla-frontend',
+  'oembed-proxy',
+  'proxy',
+  'test-clients'
+];
 
 if (!_.isUndefined(ARGS.datasource)) {
   datasource = ARGS.datasource
