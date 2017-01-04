@@ -14,4 +14,6 @@ RUN apt-get update && \
     apt-get --yes install python-pip jq && \
     pip install awscli
 
+COPY scripts/* /usr/share/grafana/public/dashboards/
+
 ENTRYPOINT ["/ndla-run-grafana.sh"]
