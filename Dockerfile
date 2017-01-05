@@ -14,4 +14,6 @@ RUN apt-get update && \
     apt-get --yes install python-pip jq && \
     pip install awscli
 
+# needed to run grafana on port 80
+RUN setcap 'cap_net_bind_service=+ep' /usr/sbin/grafana-server
 ENTRYPOINT ["/ndla-run-grafana.sh"]
