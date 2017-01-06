@@ -2,36 +2,15 @@
 
 let datasource = 'test';
 let region = 'eu-central-1';
-let components = [
-  'api-documentation',
-  'api-gateway',
-  'article-api',
-  'article-oembed',
-  'audio-api',
-  'auth',
-  'grep',
-  'image-api',
-  'learningpath-api',
-  'learningpath-frontend',
-  'monitoring',
-  'ndla-frontend',
-  'oembed-proxy',
-  'proxy',
-  'test-clients'
-];
 
 if (!_.isUndefined(ARGS.datasource)) {
-  datasource = ARGS.datasource
+  datasource = ARGS.datasource;
 }
 
-function getComponentIdentifier(componentName) {
-  return datasource + '-' + componentName;
-}
-
-function generateTargets(namespace, metricName, dimension, period, getComponentIdentifierCb = getComponentIdentifier) {
-  return components.map(function(component) {
+function generateTargets(namespace, metricName, dimension, period, autoScalingGroupNames, getComponentIdentifierCb = function(name) { return name; }) {
+  return autoScalingGroupNames.map(function(componentName) {
     let dimensions = {};
-    dimensions[dimension] = getComponentIdentifierCb(component);
+    dimensions[dimension] = getComponentIdentifierCb(componentName);
 
     return {
       dimensions,
@@ -64,11 +43,12 @@ function generateRow(title, panels) {
     height: '300px',
   }
 }
-function generateHealthyHostsPanel(span) {
-  let healthyHostsPanel = generatePanel(
-    'Healthy hosts',
-    generateTargets('AWS/ELB', 'HealthyHostCount', 'LoadBalancerName'),
-    'table', span);
+
+function generateHealthyHostsPanel(span, autoScalingGroupNames) {
+  let healthyHostsPanel = generatePanel('Healthy hosts',
+    generateTargets('AWS/ELB', 'HealthyHostCount', 'LoadBalancerName', '10m', autoScalingGroupNames),
+    'table',
+    span);
 
   healthyHostsPanel['hideTimeOverride'] = false;
   healthyHostsPanel['transform'] = 'timeseries_aggregations';
@@ -82,45 +62,91 @@ function generateHealthyHostsPanel(span) {
   return healthyHostsPanel;
 }
 
-function generateRDSRow() {
-  function getRDSComponentIdentifier(componentName) {
-    return 'data-' + datasource + '-' + componentName + '-ndla';
+function generateRDSRow(autoScalingGroupNames) {
+  function getRDSComponentIdentifier(autoScalingGroupName) {
+    return 'data-' + autoScalingGroupName + '-ndla';
   }
 
   let panels = [
-    generatePanel('Read IOPS', generateTargets('AWS/RDS', 'ReadIOPS', 'DBInstanceIdentifier', '10m', getRDSComponentIdentifier), 'graph', 6),
-    generatePanel('Write IOPS', generateTargets('AWS/RDS', 'WriteIOPS', 'DBInstanceIdentifier', '10m', getRDSComponentIdentifier), 'graph', 6),
+    generatePanel('Read IOPS', generateTargets('AWS/RDS', 'ReadIOPS', 'DBInstanceIdentifier', '10m', autoScalingGroupNames, getRDSComponentIdentifier), 'graph', 6),
+    generatePanel('Write IOPS', generateTargets('AWS/RDS', 'WriteIOPS', 'DBInstanceIdentifier', '10m', autoScalingGroupNames, getRDSComponentIdentifier), 'graph', 6),
   ];
   return generateRow('RDS', panels);
 }
 
-function generateNetworkRow() {
+function generateNetworkRow(autoScalingGroupNames) {
   let panels = [
-    generatePanel('Network In', generateTargets('AWS/EC2', 'NetworkIn', 'AutoScalingGroupName', '10m'), 'graph', 6),
-    generatePanel('Network Out', generateTargets('AWS/EC2', 'NetworkOut', 'AutoScalingGroupName', '10m'), 'graph', 6),
+    generatePanel('Network In', generateTargets('AWS/EC2', 'NetworkIn', 'AutoScalingGroupName', '10m', autoScalingGroupNames), 'graph', 6),
+    generatePanel('Network Out', generateTargets('AWS/EC2', 'NetworkOut', 'AutoScalingGroupName', '10m', autoScalingGroupNames), 'graph', 6),
   ];
 
   return generateRow('Network', panels);
 }
 
-function generateCPUUtilizationRow() {
+function generateCPUUtilizationRow(autoScalingGroupNames) {
   let panels = [
-    generatePanel('CPU', generateTargets('AWS/EC2', 'CPUUtilization', 'AutoScalingGroupName', '10m'), 'graph', 10),
-    generateHealthyHostsPanel(2)
+    generatePanel('CPU', generateTargets('AWS/EC2', 'CPUUtilization', 'AutoScalingGroupName', '10m', autoScalingGroupNames), 'graph', 10),
+    generateHealthyHostsPanel(2, autoScalingGroupNames)
   ];
   return generateRow('CPU', panels);
 }
 
-let dashboard = {
-  title: datasource + ' dashboard',
-  from: 'now-6h',
-  to: 'now',
-  rows: [
-    generateCPUUtilizationRow(),
-    generateNetworkRow(),
-    generateRDSRow(),
-  ]
-};
+function isAutoScalingGroupEntry(metricsListEntry) {
+  if (metricsListEntry.Dimensions.length < 1) {
+    return false;
+  }
 
-console.log(dashboard);
-return dashboard;
+  return metricsListEntry.Dimensions[0].Name === "AutoScalingGroupName";
+}
+
+function generateDashboard(callback, autoScalingGroupNames) {
+  let dashboard = {
+    title: datasource + ' dashboard',
+    from: 'now-6h',
+    to: 'now',
+    rows: [
+      generateCPUUtilizationRow(autoScalingGroupNames),
+      generateNetworkRow(autoScalingGroupNames),
+      generateRDSRow(autoScalingGroupNames),
+    ]
+  };
+
+  console.log(dashboard);
+  callback(dashboard);
+}
+
+function getComponentNamesAndGenerateDashboard(dataSourceId, callback) {
+  $.ajax({
+    method: 'POST',
+    url:'/monitoring/api/datasources/proxy/' + dataSourceId,
+    data: JSON.stringify({
+      region:"eu-central-1",
+      action:"ListMetrics",
+      parameters: {
+        namespace:"AWS/EC2",
+        metricName:"CPUUtilization",
+        dimensions:[]
+      }
+    }),
+    contentType: "application/json; charset=utf-8",
+    dataType: "json",
+  }).done(function(result) {
+    const autoScalingEntries = result.Metrics.filter(isAutoScalingGroupEntry);
+    const autoScalingGroupNames = autoScalingEntries.map(function(entry) { return entry.Dimensions[0].Value; })
+    generateDashboard(callback, autoScalingGroupNames);
+  });
+}
+
+return function(callback) {
+  $.ajax({
+    method: 'GET',
+    url:'/monitoring/api/datasources/'
+  }).done(function(dataSources) {
+    console.log(dataSources);
+    const source = dataSources.filter(function(dataSource) { return dataSource.name === datasource });
+    console.log(source);
+    if (source.length > 0) {
+      getComponentNamesAndGenerateDashboard(source[0].id, callback);
+    }
+  });
+}
