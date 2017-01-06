@@ -111,7 +111,6 @@ function generateDashboard(callback, autoScalingGroupNames) {
     ]
   };
 
-  console.log(dashboard);
   callback(dashboard);
 }
 
@@ -144,7 +143,6 @@ return function(callback) {
   }).done(function(dataSources) {
     console.log(dataSources);
     const source = dataSources.filter(function(dataSource) { return dataSource.name === datasource });
-    console.log(source);
     if (source.length > 0) {
       getComponentNamesAndGenerateDashboard(source[0].id, callback);
     }
