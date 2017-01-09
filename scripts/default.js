@@ -139,12 +139,10 @@ function getComponentNamesAndGenerateDashboard(dataSourceId, callback) {
 return function(callback) {
   $.ajax({
     method: 'GET',
-    url:'/monitoring/api/datasources/'
-  }).done(function(dataSources) {
-    console.log(dataSources);
-    const source = dataSources.filter(function(dataSource) { return dataSource.name === datasource });
-    if (source.length > 0) {
-      getComponentNamesAndGenerateDashboard(source[0].id, callback);
+    url:'/monitoring/api/datasources/id/' + datasource
+  }).done(function(dataSourceId) {
+    if (dataSourceId) {
+      getComponentNamesAndGenerateDashboard(dataSourceId.id, callback);
     }
   });
 }
