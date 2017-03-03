@@ -31,7 +31,7 @@ function generatePanel(title, targets, type, span = 12) {
     title,
     type,
     span,
-    fill: 1,
+    fill: 0,
     linewidth: 2
   }
 }
@@ -42,24 +42,6 @@ function generateRow(title, panels) {
     panels,
     height: '300px',
   }
-}
-
-function generateHealthyHostsPanel(span, autoScalingGroupNames) {
-  let healthyHostsPanel = generatePanel('Healthy hosts',
-    generateTargets('AWS/ELB', 'HealthyHostCount', 'LoadBalancerName', '10m', autoScalingGroupNames),
-    'table',
-    span);
-
-  healthyHostsPanel['hideTimeOverride'] = false;
-  healthyHostsPanel['transform'] = 'timeseries_aggregations';
-  healthyHostsPanel['timeFrom'] = '5m';
-  healthyHostsPanel['styles'] = [];
-  healthyHostsPanel['sort'] = {
-    col: 0,
-    desc: true,
-  };
-
-  return healthyHostsPanel;
 }
 
 function generateRDSRow(autoScalingGroupNames) {
@@ -85,8 +67,8 @@ function generateNetworkRow(autoScalingGroupNames) {
 
 function generateCPUUtilizationRow(autoScalingGroupNames) {
   let panels = [
-    generatePanel('CPU', generateTargets('AWS/EC2', 'CPUUtilization', 'AutoScalingGroupName', '10m', autoScalingGroupNames), 'graph', 10),
-    generateHealthyHostsPanel(2, autoScalingGroupNames)
+    generatePanel('CPU', generateTargets('AWS/EC2', 'CPUUtilization', 'AutoScalingGroupName', '10m', autoScalingGroupNames), 'graph', 6),
+    generatePanel('ELB Healthy Hosts', generateTargets('AWS/ELB', 'HealthyHostCount', 'LoadBalancerName', '5m', autoScalingGroupNames), 'graph', 6),
   ];
   return generateRow('CPU', panels);
 }
