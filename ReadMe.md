@@ -9,3 +9,4 @@ Grafana monitoring for NDLA.no
 
 You need to have a docker daemon running locally.
 
+
